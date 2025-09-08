@@ -78,12 +78,13 @@ const me = (req, res, next) => {
     if (!req.user) {
         return res.json({
             error: 1,
-            message: `Your're not login or token expired`,
+            message: `You're not logged in or token expired`,
         });
     }
 
     return res.json(req.user);
 };
+
 
 const logoutUser = async (req, res, next) => {
     const token = getToken(req);

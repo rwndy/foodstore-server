@@ -11,8 +11,28 @@ const decodeToken = () => {
 
             if (!token) return next();
 
-            req.user = jwt.verify(token, config.secretKey);
-            const user = await User.findOne({ token: { $in: [token] } });
+            // Add token format validation
+            if (typeof token !== 'string' || token.trim() === '') {
+                return res.json({
+                    error: 1,
+                    message: 'Invalid token format',
+                });
+            }
+
+            // Clean the token (remove 'Bearer ' prefix if present)
+            const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
+
+            // Validate token format (JWT should have 3 parts separated by dots)
+            if (cleanToken.split('.').length !== 3) {
+                return res.json({
+                    error: 1,
+                    message: 'jwt malformed',
+                });
+            }
+
+            // Verify the token
+            req.user = jwt.verify(cleanToken, config.secretKey);
+            const user = await User.findOne({ token: { $in: [cleanToken] } });
 
             if (!user) {
                 return res.json({
@@ -20,16 +40,26 @@ const decodeToken = () => {
                     message: `Token expired`,
                 });
             }
+
+            return next();
         } catch (error) {
+
             if (error && error.name === 'JsonWebTokenError') {
                 return res.json({
                     error: 1,
-                    message: err.message,
+                    message: error.message,
                 });
             }
+
+            if (error && error.name === 'TokenExpiredError') {
+                return res.json({
+                    error: 1,
+                    message: 'Token expired',
+                });
+            }
+
             next(error);
         }
-        return next()
     };
 };
 
