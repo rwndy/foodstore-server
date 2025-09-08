@@ -16,24 +16,24 @@ const registerUser = async (req, res, next) => {
 
         return res.json(user);
     } catch (error) {
-        if (err && err.name === 'ValidationError') {
+        if (error && error.name === 'ValidationError') {
             return res.json({
                 error: 1,
-                message: err.message,
-                fields: err.errors,
+                message: error.message,
+                fields: error.errors,
             });
         }
         next(error);
     }
 };
 
-const localStrategy = async (email, paasword, done) => {
+const localStrategy = async (email, password, done) => {
     try {
         const user = await User.findOne({ email }).select(
             '-__v -createdAt -updatedAt -cart_items -token'
         );
 
-        const comparePassword = bcrypt.compareSync(paasword, user.paasword);
+        const comparePassword = bcrypt.compareSync(password, user.password);
 
         if (!user) return done();
 
@@ -43,7 +43,7 @@ const localStrategy = async (email, paasword, done) => {
             return done(null, userWithoutPassword);
         }
     } catch (error) {
-        done(err, null);
+        done(error, null);
     }
 
     done();
