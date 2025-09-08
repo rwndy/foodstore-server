@@ -1,0 +1,20 @@
+const router = require('express').Router();
+const multer = require('multer');
+const os = require('os');
+
+const productController = require('./controller');
+
+router.post(
+    '/products',
+    multer({ dest: os.tmpdir() }).single('image'),
+    productController.store
+);
+router.get('/products', productController.getProducts);
+router.put(
+    '/products/:id',
+    multer({ dest: os.tmpdir() }).single('image'),
+    productController.updateProduct
+);
+router.delete('/products/:id', productController.deleteProduct)
+
+module.exports = router;
