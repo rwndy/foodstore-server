@@ -131,7 +131,8 @@ const getProducts = async (req, res, next) => {
         let count = await Product.find(criteria).countDocuments();
 
         let products = await Product.find(criteria)
-            .paginate(limit, skip)
+            .limit(parseInt(limit))
+            .skip(parseInt(skip))
             .populate('category')
             .populate('tags')
             .select('-__v');
