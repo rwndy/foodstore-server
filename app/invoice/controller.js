@@ -1,6 +1,11 @@
 const { subject } = require('@casl/ability');
 const Invoice = require('./model');
 const { policyFor } = require('../policy');
+const {
+    sendSuccess,
+    sendError,
+    HTTP_STATUS,
+} = require('../utils/responseHelper');
 
 const getInvoice = async (req, res, next) => {
     try {
@@ -17,23 +22,33 @@ const getInvoice = async (req, res, next) => {
         });
 
         if (!policy.can('read', subjectInvoice)) {
-            return res.json({
-                error: 1,
-                message: `Anda tidak memiliki akses untuk melihat invoice ini.`,
-            });
+            return sendError(
+                res,
+                `You're not allowed to perform this action`,
+                HTTP_STATUS.FORBIDDEN
+            );
         }
-        
-        return res.json(invoice);
 
+        return sendSuccess(
+            res,
+            'Invoice retrieved successfully',
+            { invoice },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: `Error when getting invoice.`,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-
-        next(error);
+       return sendError(
+           res,
+           'Internal server error',
+           HTTP_STATUS.INTERNAL_SERVER_ERROR
+       );
     }
 };
 

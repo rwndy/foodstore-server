@@ -1,14 +1,20 @@
 const Tag = require('./model');
 const { policyFor } = require('../policy');
+const {
+    sendSuccess,
+    sendError,
+    HTTP_STATUS,
+} = require('../utils/responseHelper');
 
 const createTag = async (req, res, next) => {
     try {
         let policy = policyFor(req.user);
         if (!policy.can('create', 'Tag')) {
-            return res.json({
-                error: 1,
-                message: `Anda tidak memiliki akses untuk membuat tag`,
-            });
+            return sendError(
+                res,
+                `You're not allowed to perform this action`,
+                HTTP_STATUS.FORBIDDEN
+            );
         }
 
         const payload = req.body;
@@ -17,17 +23,26 @@ const createTag = async (req, res, next) => {
 
         await tag.save();
 
-        return res.json(tag);
+        return sendSuccess(
+            res,
+            'Tag successfully created',
+            { tag },
+            HTTP_STATUS.CREATED
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: error.message,
-                fields: error.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -35,10 +50,11 @@ const updateTag = async (req, res, next) => {
     try {
         let policy = policyFor(req.user);
         if (!policy.can('update', 'Tag')) {
-            return res.json({
-                error: 1,
-                message: `Anda tidak memiliki akses untuk mengupdate tag`,
-            });
+            return sendError(
+                res,
+                `You're not allowed to perform this action`,
+                HTTP_STATUS.FORBIDDEN
+            );
         }
         const payload = req.body;
         const tag = await Tag.findOneAndUpdate(
@@ -46,17 +62,27 @@ const updateTag = async (req, res, next) => {
             payload,
             { new: true, runValidators: true }
         );
-        return res.json(tag);
+
+        return sendSuccess(
+            res,
+            'Tag successufully updated',
+            { tag },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: error.message,
-                fields: error.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -71,18 +97,48 @@ const deleteTag = async (req, res, next) => {
         }
 
         const payload = Tag.findOneAndDelete({ _id: req.params.id });
-        return res.json(payload);
+
+        return sendSuccess(res, 'Tag has deleted', { payload }, HTTP_STATUS.OK);
     } catch (error) {
-        next(error);
+        if (error && error.name === 'ValidationError') {
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
+        }
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
 const getTags = async (_, res, next) => {
     try {
         const tags = await Tag.find();
-        return res.json(tags);
+        return sendSuccess(
+            res,
+            'Tag retrieved successfully',
+            { tags },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
-        next(error);
+        if (error && error.name === 'ValidationError') {
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
+        }
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 

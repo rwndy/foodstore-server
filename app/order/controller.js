@@ -4,16 +4,22 @@ const OrderItem = require('../order-item/model');
 const CartItem = require('../cart-item/model');
 const DeliveryAddress = require('../delivery-address/model');
 const { policyFor } = require('../policy');
-const { subject } = require('@casl/ability');
+const {
+    sendSuccess,
+    sendError,
+    HTTP_STATUS,
+} = require('../utils/responseHelper');
+const { createPaginationMeta } = require('../utils/pagination');
 
 const createOrder = async (req, res, next) => {
     const policy = policyFor(req.user);
 
     if (!policy.can('create', 'Order')) {
-        return res.json({
-            error: 1,
-            message: `You're not allowed to perform this action`,
-        });
+        return sendError(
+            res,
+            `You're not allowed to perform this action`,
+            HTTP_STATUS.FORBIDDEN
+        );
     }
 
     try {
@@ -26,10 +32,11 @@ const createOrder = async (req, res, next) => {
         });
 
         if (!items.length) {
-            return res.json({
-                error: 1,
-                message: `Can't create order because you have not item in cart`,
-            });
+            return sendError(
+                res,
+                `Can't create order because you have not item in cart`,
+                HTTP_STATUS.BAD_REQUEST
+            );
         }
 
         const order = new Order({
@@ -61,17 +68,28 @@ const createOrder = async (req, res, next) => {
         await order.save();
 
         await CartItem.deleteMany({ user: req.user._id });
-        return res.json(order);
+
+        return sendSuccess(
+            res,
+            'Order successfully created',
+            { oreder },
+            HTTP_STATUS.CREATED
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: error.message,
-                fields: error.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
 
-        next(error)
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -79,13 +97,18 @@ const getOrder = async (req, res, next) => {
     const policy = policyFor(req.user);
 
     if (!policy.can('view', 'Order')) {
-        return res.json({
-            error: 1,
-            message: `You're not allowed to perform this action`,
-        });
+        return sendError(
+            res,
+            `You're not allowed to perform this action`,
+            HTTP_STATUS.FORBIDDEN
+        );
     }
     try {
-        const { limit = 10, skip = 0 } = req.query;
+        const { limit = 10, skip = 0, page = 1 } = req.query;
+
+        if (page && !req.query.skip) {
+            skip = (parseInt(page) - 1) * parseInt(limit);
+        }
 
         const count = await Order.find({ user: req.user._id }).countDocuments();
         const orders = await Order.find({ user: req.user._id })
@@ -94,21 +117,37 @@ const getOrder = async (req, res, next) => {
             .populate('order_items')
             .sort('-createdAt');
 
-        return res.json({
-            data: orders.map(order => order.toJSON({ virtuals: true })),
+        const meta = createPaginationMeta(
             count,
-        });
+            parseInt(limit),
+            parseInt(skip)
+        );
 
+        const responseData = {
+            orders: orders.map(order => order.toJSON({ virtuals: true })),
+            meta,
+        };
+        return sendSuccess(
+            res,
+            'Order retrieved successfully',
+            responseData,
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: error.message,
-                fields: error.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
 
-        next(error)
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 

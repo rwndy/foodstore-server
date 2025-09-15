@@ -1,15 +1,22 @@
 const DeliveryAddressModel = require('./model');
 const { policyFor } = require('../policy');
 const { subject } = require('@casl/ability');
+const {
+    sendSuccess,
+    HTTP_STATUS,
+    sendError,
+} = require('../utils/responseHelper');
+const { createPaginationMeta } = require('../utils/pagination');
 
 const createAddress = async (req, res, next) => {
     const policy = policyFor(req.user);
 
     if (!policy.can('create', 'DeliveryAddress')) {
-        return res.json({
-            error: 1,
-            message: `You're not allowed to perform this action`,
-        });
+        return sendError(
+            res,
+            `You're not allowed to perform this action`,
+            HTTP_STATUS.FORBIDDEN
+        );
     }
 
     try {
@@ -22,16 +29,26 @@ const createAddress = async (req, res, next) => {
         });
         await address.save();
 
-        return res.json(address);
+        return sendSuccess(
+            res,
+            'Address created successfully',
+            { address },
+            HTTP_STATUS.CREATED
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: err.message,
-                fields: err.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -50,17 +67,23 @@ const updateAddress = async (req, res, next) => {
         let address = await DeliveryAddress.findOne({ _id: id });
 
         if (!policy.can('update', subjectAddress)) {
-            return res.json({
-                error: 1,
-                message: `You're not allowed to perform this action`,
-            });
+            return sendError(
+                res,
+                `You're not allowed to perform this action`,
+                HTTP_STATUS.FORBIDDEN
+            );
         }
 
         address = await DeliveryAddress.findOneAndUpdate({ _id: id }, payload, {
             new: true,
         });
 
-        res.json(address);
+        return sendSuccess(
+            res,
+            'Address successfully updated',
+            { address },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
             return res.json({
@@ -69,7 +92,11 @@ const updateAddress = async (req, res, next) => {
                 fields: err.errors,
             });
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -80,22 +107,33 @@ const deleteAddress = async (req, res, next) => {
         const subjectAddress = subject({ ...address, user: address.user });
 
         if (!policy.can('delete', subjectAddress)) {
-            return res.json({
-                error: 1,
-                message: `You're not allowed to delete this resource`,
-            });
+            return sendError(
+                res,
+                `You're not allowed to perform this action`,
+                HTTP_STATUS.FORBIDDEN
+            );
         }
-        await DeliveryAddress.findOneAndDelete({ _id: id });
-        return res.json(address);
+        const address = await DeliveryAddress.findOneAndDelete({ _id: id });
+        return sendSuccess(
+            res,
+            'Address successfully deleted',
+            { address },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: err.message,
-                fields: err.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -110,7 +148,12 @@ const getAddress = async (req, res, next) => {
     }
 
     try {
-        const { limit = 10, skip = 0 } = req.query;
+        const { limit = 10, skip = 0, page = 1 } = req.query;
+
+        if (page && !req.query.skip) {
+            skip = (parseInt(page) - 1) * parseInt(limit);
+        }
+
         const count = await DeliveryAddressModel.find({
             user: req.user._id,
         }).countDocuments();
@@ -122,16 +165,34 @@ const getAddress = async (req, res, next) => {
             .skip(parseInt(skip))
             .sort('-createdAt');
 
-        return res.json({ data: deleteAddress, count });
+        const meta = createPaginationMeta(
+            count,
+            parseInt(limit),
+            parseInt(skip)
+        );
+
+        const responseData = { address: deliveryAddres, meta };
+
+        return sendSuccess(
+            res,
+            'Address retrieved successfully',
+            responseData,
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: err.message,
-                fields: err.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 

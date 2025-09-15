@@ -48,7 +48,6 @@ userSchema.path('email').validate(
 userSchema.path('email').validate(
     async function (value) {
         try {
-            // Use mongoose.model('User') to reference the model
             const count = await mongoose
                 .model('User')
                 .countDocuments({ email: value });
@@ -60,7 +59,6 @@ userSchema.path('email').validate(
     attr => `${attr.value} sudah terdaftar`
 );
 
-// Fix: Use regular function (not arrow function) to preserve 'this' context
 userSchema.pre('save', function(next) {
     this.password = bcrypt.hashSync(this.password, HASH_ROUND);
     next();

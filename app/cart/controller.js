@@ -1,15 +1,21 @@
 const { policyFor } = require('../policy');
 const Product = require('../product/model');
 const CartItem = require('../cart-item/model');
+const {
+    sendSuccess,
+    sendError,
+    HTTP_STATUS,
+} = require('../utils/responseHelper');
 
 const updateCart = async (req, res, next) => {
     const policy = policyFor(req.user);
 
     if (policy.can('update', 'Cart')) {
-        return res.json({
-            error: 1,
-            message: `You're not allowed to perform this action`,
-        });
+        return sendError(
+            res,
+            `You're not allowed to perform this action`,
+            HTTP_STATUS.FORBIDDEN
+        );
     }
 
     try {
@@ -48,16 +54,28 @@ const updateCart = async (req, res, next) => {
             })
         );
 
-        return res.json(cartItems);
+        return sendSuccess(
+            res,
+            `cart items updated successfully`,
+            {
+                cart_items: cartItems,
+            },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name == 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: err.message,
-                fields: err.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -65,26 +83,39 @@ const getCartItem = async (req, res, next) => {
     const policy = policyFor(req.user);
 
     if (policy.can('read', 'Cart')) {
-        return res.json({
-            error: 1,
-            message: `You're not allowed to perform this action`,
-        });
+        return sendError(
+            res,
+            `You're not allowed to perform this action`,
+            HTTP_STATUS.FORBIDDEN
+        );
     }
 
     try {
         const items = await CartItem.find({ user: req.user._id }).populate(
             'product'
         );
-        return res.json(items);
+        return sendSuccess(
+            res,
+            `Successfully get carts`,
+            {
+                carts: items,
+            },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name == 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: err.message,
-                fields: err.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 

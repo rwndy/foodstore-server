@@ -20,6 +20,7 @@ const getKabupaten = async (req, res, next) => {
     const db_kabupaten = path.resolve(__dirname, './data/regencies.csv');
     try {
         let { kode_induk } = req.query;
+
         const data = await csv().fromFile(db_kabupaten);
 
         if (!kode_induk) return res.json(data);

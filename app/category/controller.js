@@ -1,14 +1,20 @@
 const Category = require('./model');
 const { policyFor } = require('../policy');
+const {
+    sendSuccess,
+    sendError,
+    HTTP_STATUS,
+} = require('../utils/responseHelper');
 
 const createCategory = async (req, res, next) => {
     try {
         let policy = policyFor(req.user);
         if (!policy.can('create', 'Category')) {
-            return res.json({
-                error: 1,
-                message: `Anda tidak memiliki akses untuk membuat kategori`,
-            });
+            return sendError(
+                res,
+                'Anda tidak memiliki akses untuk membuat kategori',
+                HTTP_STATUS.FORBIDDEN
+            );
         }
 
         const payload = req.body;
@@ -17,16 +23,26 @@ const createCategory = async (req, res, next) => {
 
         await category.save();
 
-        return res.json(category);
+        return sendSuccess(
+            res,
+            'Categore created successfully',
+            { category },
+            HTTP_STATUS.CREATED
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: error.message,
-                fields: error.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -34,11 +50,11 @@ const updateCategory = async (req, res, next) => {
     try {
         let policy = policyFor(req.user);
         if (!policy.can('update', 'Category')) {
-            return res.json({
-                error: 1,
-                message: `Anda tidak memiliki akses untuk mengupdate
-kategori`,
-            });
+            return sendError(
+                res,
+                'Anda tidak memiliki akses untuk mengubah kategori',
+                HTTP_STATUS.FORBIDDEN
+            );
         }
 
         const payload = req.body;
@@ -49,16 +65,26 @@ kategori`,
             { new: true, runValidators: true }
         );
 
-        return res.json(category);
+        return sendSuccess(
+            res,
+            'Category updated successfully',
+            { category },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
         if (error && error.name === 'ValidationError') {
-            return res.json({
-                error: 1,
-                message: error.message,
-                fields: error.errors,
-            });
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
         }
-        next(error);
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -66,16 +92,34 @@ const deleteCategory = async (req, res, next) => {
     try {
         let policy = policyFor(req.user);
         if (!policy.can('delete', 'Category')) {
-            return res.json({
-                error: 1,
-                message: `Anda tidak memiliki akses untuk menghapus
-kategori`,
-            });
+            return sendError(
+                res,
+                'Anda tidak memiliki akses untuk menghapus kategori',
+                HTTP_STATUS.FORBIDDEN
+            );
         }
         const payload = await Category.findOneAndDelete({ _id: req.params.id });
-        return res.json(payload);
+        return sendSuccess(
+            res,
+            'Category deleted successfully',
+            { payload },
+            HTTP_STATUS.OK
+        );
     } catch (error) {
-        next(error);
+        if (error && error.name === 'ValidationError') {
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
+        }
+
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
@@ -83,9 +127,27 @@ const getCategories = async (_, res, next) => {
     try {
         const categories = await Category.find();
 
-        return res.json(categories);
+        return sendSuccess(
+            res,
+            'Category retrieved successfully',
+            categories,
+            HTTP_STATUS.OK
+        );
     } catch (error) {
-        next(error);
+        if (error && error.name === 'ValidationError') {
+            return sendError(
+                res,
+                error.message,
+                HTTP_STATUS.UNPROCESSABLE_ENTITY,
+                { fields: error.errors }
+            );
+        }
+
+        return sendError(
+            res,
+            'Internal server error',
+            HTTP_STATUS.INTERNAL_SERVER_ERROR
+        );
     }
 };
 
