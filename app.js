@@ -31,15 +31,15 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(decodeToken());
 
-app.use('/api', productRouter);
-app.use('/api', categoryRouter);
-app.use('/api', tagRouter);
-app.use('/auth', authRouter);
-app.use('/api', wilayahRouter);
-app.use('/api', deliveryRouter);
-app.use('/api', cartRouter);
-app.use('/api', orderRouter);
-app.use('/api', invoiceRouter)
+app.use('/api/v1', productRouter);
+app.use('/api/v1', categoryRouter);
+app.use('/api/v1', tagRouter);
+app.use('/api/v1', authRouter);
+app.use('/api/v1', wilayahRouter);
+app.use('/api/v1', deliveryRouter);
+app.use('/api/v1', cartRouter);
+app.use('/api/v1', orderRouter);
+app.use('/api/v1', invoiceRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
