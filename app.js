@@ -1,9 +1,11 @@
+require('dotenv').config();
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
+require('./database');
 
 const productRouter = require('./app/product/router');
 const categoryRouter = require('./app/category/router');
@@ -40,6 +42,13 @@ app.use('/api/v1', deliveryRouter);
 app.use('/api/v1', cartRouter);
 app.use('/api/v1', orderRouter);
 app.use('/api/v1', invoiceRouter);
+
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Foodstore API is running!',
+        timestamp: new Date().toISOString(),
+    });
+});
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
