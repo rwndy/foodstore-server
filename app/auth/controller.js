@@ -50,19 +50,19 @@ const registerUser = async (req, res, next) => {
 
 const localStrategy = async (email, password, done) => {
     try {
-        const user = await User.findOne({ email }).select(
-            '-__v -createdAt -updatedAt -cart_items -token'
-        );
+        const user = await User.findOne({ email })
+            .select('_id email password full_name role customer_id')
+            .lean();
 
         // Check if user exists first
         if (!user) return done(null, false);
 
         // Then check password
-        const comparePassword = bcrypt.compareSync(password, user.password);
+        const comparePassword = await bcrypt.compare(password, user.password);
 
         if (comparePassword) {
-            const { password, ...userWithoutPassword } = user.toJSON();
-            return done(null, userWithoutPassword);
+            delete user.password;
+            return done(null, user);
         }
 
         return done(null, false);
@@ -90,13 +90,16 @@ const loginUser = async (req, res, next) => {
         }
 
         try {
-            const signed = jwt.sign(user, config.secretKey);
-
-            await User.findOneAndUpdate(
-                { _id: user._id },
-                { $push: { token: signed } },
-                { new: true }
-            );
+            const tokenPayload = {
+                _id: user._id,
+                email: user.email,
+                role: user.role,
+                full_name: user.full_name,
+                customer_id: user.customer_id,
+            };
+            const signed = jwt.sign(tokenPayload, config.secretKey, {
+                expiresIn: '24h',
+            });
 
             return sendSuccess(
                 res,
@@ -138,6 +141,7 @@ const me = (req, res, next) => {
 
 const logoutUser = async (req, res, next) => {
     try {
+        // Just verify the token exists and is valid
         const token = getToken(req);
 
         if (!token) {
@@ -149,13 +153,11 @@ const logoutUser = async (req, res, next) => {
         }
 
         const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
-        const user = await User.findOneAndUpdate(
-            { token: { $in: [cleanToken] } },
-            { $pull: { token: cleanToken } },
-            { new: true }
-        );
 
-        if (!user) {
+        // Verify token is valid (will throw if invalid/expired)
+        try {
+            jwt.verify(cleanToken, config.secretKey);
+        } catch (error) {
             return sendError(
                 res,
                 'Token expired or invalid',
@@ -163,6 +165,8 @@ const logoutUser = async (req, res, next) => {
             );
         }
 
+        // Success - client should remove token
+        // Token will naturally expire in 24h
         return sendSuccess(res, 'Logout successful', null, HTTP_STATUS.OK);
     } catch (error) {
         console.error('Logout error:', error);

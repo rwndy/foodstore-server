@@ -21,6 +21,9 @@ const userSchema = Schema(
             type: String,
             required: [true, 'Email harus diisi'],
             maxlength: [255, 'Panjang email maksimal 255 karakter'],
+            unique: true,
+            lowercase: true,
+            index: true,
         },
         password: {
             type: String,
@@ -37,6 +40,8 @@ const userSchema = Schema(
     { timestamps: true }
 );
 
+userSchema.index({ token: 1 });
+
 userSchema.path('email').validate(
     value => {
         const EMAIL_RE = /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/;
@@ -48,9 +53,11 @@ userSchema.path('email').validate(
 userSchema.path('email').validate(
     async function (value) {
         try {
-            const count = await mongoose
-                .model('User')
-                .countDocuments({ email: value });
+            if (!this.isModified('email')) return true;
+
+            const count = await this.constructor.countDocuments({
+                email: value.toLowerCase(),
+            });
             return !count;
         } catch (error) {
             throw error;
@@ -59,9 +66,19 @@ userSchema.path('email').validate(
     attr => `${attr.value} sudah terdaftar`
 );
 
-userSchema.pre('save', function(next) {
-    this.password = bcrypt.hashSync(this.password, HASH_ROUND);
-    next();
+userSchema.pre('save', async function (next) {
+    try {
+        // Only hash if password is modified
+        if (!this.isModified('password')) {
+            return next();
+        }
+
+        // Use async hash for better performance (non-blocking)
+        this.password = await bcrypt.hash(this.password, HASH_ROUND);
+        next();
+    } catch (error) {
+        next(error);
+    }
 });
 
 userSchema.plugin(AutoIncrement, { inc_field: 'customer_id' });

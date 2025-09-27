@@ -32,14 +32,6 @@ const decodeToken = () => {
 
             // Verify the token
             req.user = jwt.verify(cleanToken, config.secretKey);
-            const user = await User.findOne({ token: { $in: [cleanToken] } });
-
-            if (!user) {
-                return res.json({
-                    error: 1,
-                    message: `Token expired`,
-                });
-            }
 
             return next();
         } catch (error) {
