@@ -1,10 +1,9 @@
-const mongoose = require('mongoose')
-const { dbHost, dbName, dbPort, dbUser, dbPass } = require('../app/config');
+const mongoose = require('mongoose');
 
-const uri = `mongodb://${dbUser}:${dbPass}@${dbHost}:${dbPort}/${dbName}`
+const uri = process.env.MONGODB_URI;
 
-mongoose.connect(uri)
+mongoose.connect(uri);
 
-const db = mongoose.connection
+const db = mongoose.connection;
 
-module.exports = db
+module.exports = db;
